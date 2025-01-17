@@ -8,11 +8,15 @@ import {
   DialogTitle,
   TextField,
 } from '@mui/material';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Home = () => {
   const [items, setItems] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', price: '', stock: '' });
+  const [editMode, setEditMode] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null); 
 
   useEffect(() => {
     fetch('/api/items')
@@ -21,16 +25,44 @@ const Home = () => {
   }, []);
 
   const handleSave = async () => {
-    await fetch('/api/items', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    });
+    if (editMode) {
+      await fetch(`/api/items/${selectedItem.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      toast.success('Item updated successfully!');
+    } else {
+      await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      toast.success('Item added successfully!');
+    }
+
     setDialogOpen(false);
     setFormData({ name: '', price: '', stock: '' });
+    setEditMode(false);
+    setSelectedItem(null);
     fetch('/api/items')
       .then((res) => res.json())
       .then(setItems);
+  };
+
+  const handleDelete = async (id) => {
+    await fetch(`/api/items/${id}`, { method: 'DELETE' });
+    toast.success('Item deleted successfully!');
+    fetch('/api/items')
+      .then((res) => res.json())
+      .then(setItems);
+  };
+
+  const handleEdit = (item) => {
+    setSelectedItem(item);
+    setFormData({ name: item.name, price: item.price, stock: item.stock });
+    setEditMode(true);
+    setDialogOpen(true);
   };
 
   return (
@@ -45,6 +77,17 @@ const Home = () => {
           { field: 'name', headerName: 'Name', width: 130 },
           { field: 'price', headerName: 'Price', width: 130 },
           { field: 'stock', headerName: 'Stock', width: 130 },
+          {
+            field: 'actions',
+            headerName: 'Actions',
+            renderCell: (params) => (
+              <>
+                <Button onClick={() => handleEdit(params.row)}>Edit</Button>
+                <Button onClick={() => handleDelete(params.row.id)}>Delete</Button>
+              </>
+            ),
+            width: 300,
+          },
         ]}
         pageSize={5}
         rowsPerPageOptions={[5]}
@@ -52,7 +95,7 @@ const Home = () => {
       />
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-        <DialogTitle>Add New Item</DialogTitle>
+        <DialogTitle>{editMode ? 'Edit Item' : 'Add New Item'}</DialogTitle>
         <DialogContent>
           <TextField
             margin="dense"
@@ -80,9 +123,11 @@ const Home = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave}>Save</Button>
-        </DialogActions>
+          <Button onClick={handleSave}>{editMode ? 'Update' : 'Save'}</Button>    
+              </DialogActions>
       </Dialog>
+
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
     </div>
   );
 };
