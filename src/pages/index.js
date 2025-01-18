@@ -73,6 +73,10 @@ const Home = () => {
       }
     },
   });
+  const handleCancle=async()=>{
+    formik.resetForm()
+    setDialogOpen(false)
+  }
 
   const handleDelete = async (id) => {
     await fetch(`/api/items/${id}`, { method: 'DELETE' }).then(()=>{
@@ -90,7 +94,7 @@ const Home = () => {
   };
 
   return (
-    <div style={{ height: 400, width: '100%' }}>
+    <div style={{ height: 1000, width: '100%' }}>
       <Button variant="contained" onClick={() => setDialogOpen(true)}>
         Add Item
       </Button>
@@ -156,7 +160,7 @@ const Home = () => {
               helperText={formik.touched.stock && formik.errors.stock}
             />
             <DialogActions>
-              <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleCancle }>Cancel</Button>
               <Button type="submit">{editMode ? 'Update' : 'Save'}</Button>
             </DialogActions>
           </form>
