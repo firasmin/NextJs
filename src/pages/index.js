@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
 import {
   Button,
@@ -10,13 +10,26 @@ import {
 } from '@mui/material';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 
 const Home = () => {
   const [items, setItems] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: '', price: '', stock: '' });
   const [editMode, setEditMode] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null); 
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  const validationSchema = Yup.object({
+    name: Yup.string().required('Name is required'),
+    price: Yup.number()
+      .typeError('Price must be a number')
+      .required('Price is required')
+      .positive('Price must be positive'),
+    stock: Yup.number()
+      .typeError('Stock must be a number')
+      .required('Stock is required')
+      .min(0, 'Stock cannot be negative'),
+  });
 
   useEffect(() => {
     fetch('/api/items')
@@ -24,31 +37,48 @@ const Home = () => {
       .then(setItems);
   }, []);
 
-  const handleSave = async () => {
-    if (editMode) {
-      await fetch(`/api/items/${selectedItem.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      toast.success('Item updated successfully!');
-    } else {
-      await fetch('/api/items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      toast.success('Item added successfully!');
-    }
+  // Formik setup
+  const formik = useFormik({
+    initialValues: {
+      name: '',
+      price: '',
+      stock: '',
+    },
+    validationSchema,
+    onSubmit: async (values, { resetForm }) => {
+      const apiUrl = editMode ? `/api/items/${selectedItem.id}` : '/api/items';
+      const method = editMode ? 'PUT' : 'POST';
 
-    setDialogOpen(false);
-    setFormData({ name: '', price: '', stock: '' });
-    setEditMode(false);
-    setSelectedItem(null);
-    fetch('/api/items')
-      .then((res) => res.json())
-      .then(setItems);
-  };
+      const response = await fetch(apiUrl, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+
+      if (response.ok) {
+       
+        toast.success(editMode ? 'Item updated successfully!' : 'Item added successfully!');
+        resetForm();
+        setDialogOpen(false);
+        setEditMode(false);
+        setSelectedItem(null);
+        fetch('/api/items')
+          .then((res) => res.json())
+          .then(setItems);
+      } else {
+        if(response.status==409)
+        {
+          toast.error('stock already exist')
+          setDialogOpen(false)
+          resetForm();
+        }
+        else{
+          toast.error('Something went wrong');
+          resetForm();
+        }
+      }
+    },
+  });
 
   const handleDelete = async (id) => {
     await fetch(`/api/items/${id}`, { method: 'DELETE' });
@@ -60,7 +90,7 @@ const Home = () => {
 
   const handleEdit = (item) => {
     setSelectedItem(item);
-    setFormData({ name: item.name, price: item.price, stock: item.stock });
+    formik.setValues({ name: item.name, price: item.price, stock: item.stock });
     setEditMode(true);
     setDialogOpen(true);
   };
@@ -97,34 +127,48 @@ const Home = () => {
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>{editMode ? 'Edit Item' : 'Add New Item'}</DialogTitle>
         <DialogContent>
-          <TextField
-            margin="dense"
-            label="Name"
-            fullWidth
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Price"
-            type="number"
-            fullWidth
-            value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Stock"
-            type="number"
-            fullWidth
-            value={formData.stock}
-            onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-          />
+          <form onSubmit={formik.handleSubmit}>
+            <TextField
+              margin="dense"
+              label="Name"
+              name="name"
+              fullWidth
+              value={formik.values.name}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.name && Boolean(formik.errors.name)}
+              helperText={formik.touched.name && formik.errors.name}
+            />
+            <TextField
+              margin="dense"
+              label="Price"
+              name="price"
+              type="number"
+              fullWidth
+              value={formik.values.price}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.price && Boolean(formik.errors.price)}
+              helperText={formik.touched.price && formik.errors.price}
+            />
+            <TextField
+              margin="dense"
+              label="Stock"
+              name="stock"
+              type="number"
+              fullWidth
+              value={formik.values.stock}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.stock && Boolean(formik.errors.stock)}
+              helperText={formik.touched.stock && formik.errors.stock}
+            />
+            <DialogActions>
+              <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button type="submit">{editMode ? 'Update' : 'Save'}</Button>
+            </DialogActions>
+          </form>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave}>{editMode ? 'Update' : 'Save'}</Button>    
-              </DialogActions>
       </Dialog>
 
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
