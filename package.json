@@ -14,10 +14,13 @@
     "@mui/material": "^6.4.0",
     "@mui/x-data-grid": "^7.23.6",
     "@prisma/client": "^6.2.1",
+    "formik": "^2.4.6",
     "next": "15.1.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-toastify": "^11.0.3"
+    "react-toastify": "^11.0.3",
+    "swr": "^2.3.0",
+    "yup": "^1.6.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -12,12 +12,15 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import useSWR, { mutate } from 'swr';
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 const Home = () => {
-  const [items, setItems] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const { data, error } = useSWR('/api/items', fetcher);
+
 
   const validationSchema = Yup.object({
     name: Yup.string().required('Name is required'),
@@ -31,13 +34,6 @@ const Home = () => {
       .min(0, 'Stock cannot be negative'),
   });
 
-  useEffect(() => {
-    fetch('/api/items')
-      .then((res) => res.json())
-      .then(setItems);
-  }, []);
-
-  // Formik setup
   const formik = useFormik({
     initialValues: {
       name: '',
@@ -57,14 +53,12 @@ const Home = () => {
 
       if (response.ok) {
        
-        toast.success(editMode ? 'Item updated successfully!' : 'Item added successfully!');
+        editMode? toast.info( 'Item update successfully!'):toast.success('Item added successfully');
         resetForm();
         setDialogOpen(false);
         setEditMode(false);
         setSelectedItem(null);
-        fetch('/api/items')
-          .then((res) => res.json())
-          .then(setItems);
+        mutate('/api/items')
       } else {
         if(response.status==409)
         {
@@ -81,11 +75,11 @@ const Home = () => {
   });
 
   const handleDelete = async (id) => {
-    await fetch(`/api/items/${id}`, { method: 'DELETE' });
+    await fetch(`/api/items/${id}`, { method: 'DELETE' }).then(()=>{
+      mutate('/api/items')
+    });
     toast.success('Item deleted successfully!');
-    fetch('/api/items')
-      .then((res) => res.json())
-      .then(setItems);
+    
   };
 
   const handleEdit = (item) => {
@@ -101,7 +95,7 @@ const Home = () => {
         Add Item
       </Button>
       <DataGrid
-        rows={items}
+        rows={data}
         columns={[
           { field: 'id', headerName: 'ID', width: 70 },
           { field: 'name', headerName: 'Name', width: 130 },
@@ -119,9 +113,7 @@ const Home = () => {
             width: 300,
           },
         ]}
-        pageSize={5}
-        rowsPerPageOptions={[5]}
-        checkboxSelection
+       
       />
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
